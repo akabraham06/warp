@@ -7,7 +7,6 @@ import { twooTheme } from './styles/twooTheme';
 import { TwooGlobalStyles } from './styles/TwooGlobalStyles';
 
 // Components
-import TwooHeader from './components/TwooHeader';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
@@ -22,7 +21,6 @@ function App() {
       <AuthProvider>
         <Router>
           <div className="App">
-            <TwooHeader />
             <Routes>
               <Route path="/" element={<TwooLandingPage />} />
               <Route path="/login" element={<TwooLogin />} />

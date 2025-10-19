@@ -8,6 +8,7 @@ const PageContainer = styled.div`
   background: #ffffff;
   color: #000000;
   overflow-x: hidden;
+  overflow-y: ${props => props.allowVerticalScroll ? 'auto' : 'hidden'};
 `;
 
 // Main horizontal scrolling container
@@ -15,9 +16,10 @@ const HorizontalContainer = styled.div`
   position: relative;
   width: 100%;
   height: 100vh;
-  background-color: #000000;
-  color: #ffffff;
+  background-color: ${props => props.isInHorizontalSection ? '#000000' : '#ffffff'};
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   overflow: hidden;
+  transition: background-color 0.8s ease, color 0.8s ease;
 `;
 
 // Horizontal scroll wrapper
@@ -76,8 +78,9 @@ const SectionTitle = styled.h1`
   line-height: clamp(44px, 7vw, 88px);
   letter-spacing: -2px;
   font-weight: 700;
-  color: #ffffff;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   margin-bottom: 2rem;
+  transition: color 0.8s ease;
 `;
 
 const SectionSubtitle = styled.h2`
@@ -85,8 +88,9 @@ const SectionSubtitle = styled.h2`
   line-height: clamp(28px, 4.5vw, 48px);
   letter-spacing: -2px;
   font-weight: 600;
-  color: #ffffff;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   margin-bottom: 1.5rem;
+  transition: color 0.8s ease;
 `;
 
 const SectionDescription = styled.p`
@@ -117,24 +121,24 @@ const ContactLinks = styled.ul`
 
   li {
     a {
-      color: #ffffff;
+      color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
       text-decoration: none;
       font-size: clamp(14px, 2vw, 16px);
       position: relative;
-      transition: color 0.2s ease;
+      transition: color 0.8s ease;
       
       &:hover {
         color: #767676;
       }
       
       .underline {
-        background-color: #ffffff;
+        background-color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
         bottom: -2px;
         height: 1px;
         left: 0;
         position: absolute;
         width: 0;
-        transition: width 0.2s cubic-bezier(0.455, 0.03, 0.515, 0.955);
+        transition: width 0.2s cubic-bezier(0.455, 0.03, 0.515, 0.955), background-color 0.8s ease;
       }
       
       &:hover .underline {
@@ -162,7 +166,7 @@ const TimeColumn = styled.div`
 const LargeNumber = styled.div`
   font-size: clamp(200px, 30vw, 400px);
   font-weight: 700;
-  color: #ffffff;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   opacity: 0.1;
   line-height: 1;
   position: absolute;
@@ -170,6 +174,7 @@ const LargeNumber = styled.div`
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 0;
+  transition: color 0.8s ease;
 `;
 
 const CircularGraphic = styled.div`
@@ -230,7 +235,8 @@ const ServiceList = styled.ul`
       content: '•';
       position: absolute;
       left: 0;
-      color: #ffffff;
+      color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
+      transition: color 0.8s ease;
     }
   }
 `;
@@ -256,23 +262,18 @@ const ProcessDescription = styled.p`
   color: #767676;
 `;
 
-// Vertical parallax section
-const VerticalSection = styled.div`
-  min-height: 100vh;
-  background: #ffffff;
-  position: relative;
-`;
-
+// Single Navigation component
 const FixedNavigation = styled.nav`
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
+  background: ${props => props.isInHorizontalSection ? '#000000' : '#ffffff'};
+  backdrop-filter: ${props => props.isInHorizontalSection ? 'none' : 'blur(10px)'};
   z-index: 1000;
   padding: 1rem 2rem;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: ${props => props.isInHorizontalSection ? 'none' : '1px solid #e8e8e8'};
+  transition: background 0.8s ease, backdrop-filter 0.8s ease, border-bottom 0.8s ease;
 `;
 
 const NavContent = styled.div`
@@ -286,7 +287,8 @@ const NavContent = styled.div`
 const Logo = styled.div`
   font-size: 1.5rem;
   font-weight: 700;
-  color: #000000;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
+  transition: color 0.8s ease;
 `;
 
 const NavLinks = styled.div`
@@ -294,15 +296,22 @@ const NavLinks = styled.div`
   gap: 2rem;
   
   a {
-    color: #000000;
+    color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
     text-decoration: none;
     font-weight: 500;
-    transition: color 0.2s ease;
+    transition: color 0.8s ease;
     
     &:hover {
       color: #767676;
     }
   }
+`;
+
+// Vertical parallax section
+const VerticalSection = styled.div`
+  min-height: 100vh;
+  background: #ffffff;
+  position: relative;
 `;
 
 const ConverterSection = styled.div`
@@ -344,43 +353,140 @@ const TwooLandingPage = () => {
   const containerRef = useRef(null);
   const scrollWrapperRef = useRef(null);
   const [scrollX, setScrollX] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const [isVerticalSection, setIsVerticalSection] = useState(false);
+  const [isInHorizontalSection, setIsInHorizontalSection] = useState(true);
+  const [allowVerticalScroll, setAllowVerticalScroll] = useState(false);
+  const [horizontalProgress, setHorizontalProgress] = useState(0);
+  const [lastScrollY, setLastScrollY] = useState(0);
+  const [savedHorizontalProgress, setSavedHorizontalProgress] = useState(0);
+
 
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollTop = window.pageYOffset;
-      const windowHeight = window.innerHeight;
-      const documentHeight = document.documentElement.scrollHeight;
-      
-      // Check if we're in the vertical section (after horizontal sections)
-      if (scrollTop > windowHeight * 0.8) {
-        setIsVerticalSection(true);
-      } else {
+    const handleScroll = (e) => {
+      const currentScrollY = window.pageYOffset;
+      const scrollDirection = currentScrollY > lastScrollY ? 'down' : 'up';
+      setLastScrollY(currentScrollY);
+
+      // If we're scrolling up and we're in vertical section, go back to horizontal
+      if (scrollDirection === 'up' && isVerticalSection && currentScrollY < 100) {
         setIsVerticalSection(false);
+        setIsInHorizontalSection(true);
+        setAllowVerticalScroll(false);
+        // Restore the saved horizontal progress instead of resetting to 0
+        setHorizontalProgress(savedHorizontalProgress);
+        
+        // Restore the horizontal scroll position
+        const translateX = -savedHorizontalProgress * (500 - 100);
+        if (scrollWrapperRef.current) {
+          scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
+        }
+        
+        document.body.style.overflow = 'hidden';
+        return;
       }
-      
-      // Calculate horizontal scroll based on vertical scroll
-      const maxScroll = documentHeight - windowHeight;
-      const scrollProgress = Math.min(scrollTop / (windowHeight * 0.8), 1);
-      const translateX = -scrollProgress * (500 - 100); // 500vw - 100vw
-      
-      if (scrollWrapperRef.current) {
-        scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
+
+      // If we're still in horizontal mode, prevent vertical scrolling
+      if (!allowVerticalScroll) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
-    handleScroll(); // Initial call
+    const handleWheel = (e) => {
+      const currentScrollY = window.pageYOffset;
+      const scrollDirection = e.deltaY > 0 ? 'down' : 'up';
+
+      // If we're in vertical section and scrolling up near the top, go back to horizontal
+      if (isVerticalSection && scrollDirection === 'up' && currentScrollY < 50) {
+        setIsVerticalSection(false);
+        setIsInHorizontalSection(true);
+        setAllowVerticalScroll(false);
+        // Restore the saved horizontal progress instead of resetting to 0
+        setHorizontalProgress(savedHorizontalProgress);
+        
+        // Restore the horizontal scroll position
+        const translateX = -savedHorizontalProgress * (500 - 100);
+        if (scrollWrapperRef.current) {
+          scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
+        }
+        
+        document.body.style.overflow = 'hidden';
+        return;
+      }
+
+      // If we're still in horizontal mode, convert vertical scroll to horizontal
+      if (!allowVerticalScroll) {
+        e.preventDefault();
+        
+        const delta = e.deltaY;
+        const newProgress = Math.max(0, Math.min(1, horizontalProgress + (delta * 0.001)));
+        setHorizontalProgress(newProgress);
+        
+        // Update horizontal scroll position
+        const translateX = -newProgress * (500 - 100); // 500vw - 100vw
+        if (scrollWrapperRef.current) {
+          scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
+        }
+        
+        // Start transition when we're 90% through horizontal scroll
+        if (newProgress > 0.9 && !isTransitioning) {
+          setIsTransitioning(true);
+        }
+        
+        // Complete horizontal scroll and enable vertical
+        if (newProgress >= 1 && !allowVerticalScroll) {
+          // Save the current progress before switching to vertical
+          setSavedHorizontalProgress(newProgress);
+          
+          setAllowVerticalScroll(true);
+          setIsVerticalSection(true);
+          setIsInHorizontalSection(false);
+          
+          // Ensure horizontal content is fully scrolled
+          if (scrollWrapperRef.current) {
+            scrollWrapperRef.current.style.transform = `translateX(-400vw)`;
+          }
+          
+          // Allow normal scrolling to resume
+          document.body.style.overflow = 'auto';
+        }
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('scroll', handleScroll, { passive: false });
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    
+    // Prevent default scrolling behavior during horizontal mode
+    if (!allowVerticalScroll) {
+      document.body.style.overflow = 'hidden';
+    }
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('wheel', handleWheel);
+      document.body.style.overflow = 'auto';
     };
-  }, []);
+  }, [allowVerticalScroll, horizontalProgress, isTransitioning, isVerticalSection, lastScrollY, savedHorizontalProgress]);
 
   return (
-    <PageContainer>
+    <PageContainer allowVerticalScroll={allowVerticalScroll}>
+      {/* Single Fixed Navigation - Only One Set of Elements */}
+      <FixedNavigation isInHorizontalSection={isInHorizontalSection}>
+        <NavContent>
+          <Logo isInHorizontalSection={isInHorizontalSection}>WARP</Logo>
+          <NavLinks isInHorizontalSection={isInHorizontalSection}>
+            <Link to="/">Home</Link>
+            <Link to="/login">Login</Link>
+            <Link to="/dashboard">Dashboard</Link>
+          </NavLinks>
+        </NavContent>
+      </FixedNavigation>
+
       {/* Horizontal parallax sections */}
-      <HorizontalContainer ref={containerRef}>
+      <HorizontalContainer ref={containerRef} isInHorizontalSection={isInHorizontalSection}>
         <HorizontalScrollWrapper ref={scrollWrapperRef}>
           {/* Section 1: Hero */}
           <Section>
@@ -393,11 +499,11 @@ const TwooLandingPage = () => {
                   refined user experience design.
                 </BrandDescription>
                 
-                <SectionTitle>
+                <SectionTitle isInHorizontalSection={isInHorizontalSection}>
                   We are a fintech platform based in Barcelona, enabling global transactions.
                 </SectionTitle>
                 
-                <ContactLinks>
+                <ContactLinks isInHorizontalSection={isInHorizontalSection}>
                   <li><Link to="mailto:hello@warp.com" target="_blank">
                     hello@warp.com
                     <span className="underline"></span></Link></li>
@@ -425,7 +531,7 @@ const TwooLandingPage = () => {
               </LeftContent>
               
               <RightContent>
-                <LargeNumber>2</LargeNumber>
+                <LargeNumber isInHorizontalSection={isInHorizontalSection}>2</LargeNumber>
               </RightContent>
             </SectionContent>
           </Section>
@@ -434,7 +540,7 @@ const TwooLandingPage = () => {
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionSubtitle>
+                <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>
                   Technology, Functionality &amp; Aesthetics.
                   <br />
                   All Together.
@@ -459,7 +565,7 @@ const TwooLandingPage = () => {
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionTitle>
+                <SectionTitle isInHorizontalSection={isInHorizontalSection}>
                   Multidisciplinary
                   <br />
                   Integrated Design
@@ -496,7 +602,7 @@ const TwooLandingPage = () => {
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionSubtitle>What we offer</SectionSubtitle>
+                <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>What we offer</SectionSubtitle>
                 <SectionDescription>
                   We help companies to design and build first-class products and
                   services that connect with people. Focusing on digital, we work on a
@@ -504,7 +610,7 @@ const TwooLandingPage = () => {
                   design and development.
                 </SectionDescription>
                 
-                <ServiceList>
+                <ServiceList isInHorizontalSection={isInHorizontalSection}>
                   <li>Global FX Transfers</li>
                   <li>Stablecoin Integration</li>
                   <li>Multi-Chain DEX Aggregation</li>
@@ -513,7 +619,7 @@ const TwooLandingPage = () => {
               </LeftContent>
               
               <RightContent>
-                <SectionTitle>
+                <SectionTitle isInHorizontalSection={isInHorizontalSection}>
                   Smart craft
                   <br />
                   for digital products
@@ -528,14 +634,14 @@ const TwooLandingPage = () => {
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionSubtitle>Contact</SectionSubtitle>
+                <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>Contact</SectionSubtitle>
                 <SectionDescription>
                   Warp is available for commissioned projects and collaborations.
                   No geographical restrictions, from local projects to global
                   clients.
                 </SectionDescription>
                 
-                <ContactLinks>
+                <ContactLinks isInHorizontalSection={isInHorizontalSection}>
                   <li>For work inquires</li>
                   <li><Link to="mailto:hello@warp.com" target="_blank">
                     hello@warp.com
@@ -544,26 +650,15 @@ const TwooLandingPage = () => {
               </LeftContent>
               
               <RightContent>
-                <LargeNumber>2</LargeNumber>
+                <LargeNumber isInHorizontalSection={isInHorizontalSection}>2</LargeNumber>
               </RightContent>
             </SectionContent>
           </Section>
         </HorizontalScrollWrapper>
       </HorizontalContainer>
       
-      {/* Vertical parallax section with fixed navigation */}
+      {/* Vertical parallax section with converter */}
       <VerticalSection>
-        <FixedNavigation>
-          <NavContent>
-            <Logo>WARP</Logo>
-            <NavLinks>
-              <Link to="/">Home</Link>
-              <Link to="/login">Login</Link>
-              <Link to="/dashboard">Dashboard</Link>
-            </NavLinks>
-          </NavContent>
-        </FixedNavigation>
-        
         <ConverterSection>
           <ConverterTitle>Start Converting Now</ConverterTitle>
           <ConverterDescription>
