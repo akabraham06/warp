@@ -56,6 +56,12 @@ export const twooTheme = {
       letterSpacing: '-1px',
       fontWeight: 600,
     },
+    h4: {
+      fontSize: 'clamp(18px, 2.5vw, 20px)',
+      lineHeight: 'clamp(22px, 3vw, 24px)',
+      letterSpacing: '-0.5px',
+      fontWeight: 600,
+    },
     body: {
       fontSize: 'clamp(14px, 2vw, 16px)',
       lineHeight: 'clamp(18px, 2.5vw, 20px)',

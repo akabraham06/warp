@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useAuth } from '../contexts/AuthContext';
 import { userAPI, transactionAPI } from '../services/api';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import toast from 'react-hot-toast';
 import QuickConverter from '../components/QuickConverter';
 
@@ -166,6 +168,43 @@ const LoadingState = styled.div`
   color: ${props => props.theme.colors.textSecondary};
 `;
 
+const BalanceSection = styled.section`
+  margin-bottom: ${props => props.theme.spacing.xxxl};
+`;
+
+const BalanceGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: ${props => props.theme.spacing.lg};
+`;
+
+const BalanceCard = styled.div`
+  background: ${props => props.theme.colors.background};
+  border: 1px solid ${props => props.theme.colors.border};
+  padding: ${props => props.theme.spacing.lg};
+  border-radius: ${props => props.theme.borderRadius.none};
+  text-align: center;
+  transition: ${props => props.theme.transitions.normal};
+  
+  &:hover {
+    border-color: ${props => props.theme.colors.accent};
+    background: ${props => props.theme.colors.spaceAccent};
+  }
+`;
+
+const BalanceCurrency = styled.div`
+  font-size: ${props => props.theme.typography.h4.fontSize};
+  font-weight: ${props => props.theme.fonts.weights.bold};
+  color: ${props => props.theme.colors.text};
+  margin-bottom: ${props => props.theme.spacing.xs};
+`;
+
+const BalanceAmount = styled.div`
+  font-size: 1.5rem;
+  font-weight: ${props => props.theme.fonts.weights.bold};
+  color: ${props => props.theme.colors.accent};
+`;
+
 const ErrorState = styled.div`
   background: ${props => props.theme.colors.background};
   border: 1px solid ${props => props.theme.colors.border};
@@ -191,27 +230,33 @@ const TwooDashboard = () => {
         throw new Error('User not authenticated');
       }
 
-      // Try to get authentication token
-      const token = await currentUser.getIdToken();
-
-      try {
-        // Load user profile
-        const profile = await userAPI.getUserProfile(token);
-        setUserProfile(profile);
-
-        // Load transaction history
-        const history = await transactionAPI.getTransactionHistory(token);
-        setTransactions(history.slice(0, 5)); // Show only recent 5 transactions
-      } catch (apiError) {
-        console.warn('Backend API unavailable, using mock data:', apiError);
-        
-        // Use mock data when backend is unavailable
+      // Fetch user data from Firestore
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUserProfile({
+          ...userData,
+          createdAt: userData.createdAt?.toDate?.() || new Date(userData.createdAt)
+        });
+      } else {
+        // Fallback to currentUser data
         setUserProfile({
           displayName: currentUser.displayName || 'User',
           email: currentUser.email,
-          createdAt: new Date().toISOString()
+          createdAt: new Date()
         });
+      }
 
+      // Try to load transaction history from backend
+      try {
+        const token = await currentUser.getIdToken();
+        const history = await transactionAPI.getTransactionHistory(token);
+        setTransactions(history.slice(0, 5)); // Show only recent 5 transactions
+      } catch (apiError) {
+        console.warn('Backend API unavailable, using mock transaction data:', apiError);
+        
         // Mock transaction data
         setTransactions([
           {
@@ -277,6 +322,20 @@ const TwooDashboard = () => {
             Manage your cross-currency transactions and track your financial activity.
           </WelcomeSubtitle>
         </WelcomeSection>
+
+        {userProfile?.balances && (
+          <BalanceSection>
+            <SectionTitle>Your Balances</SectionTitle>
+            <BalanceGrid>
+              {Object.entries(userProfile.balances).map(([currency, amount]) => (
+                <BalanceCard key={currency}>
+                  <BalanceCurrency>{currency.toUpperCase()}</BalanceCurrency>
+                  <BalanceAmount>{amount.toFixed(2)}</BalanceAmount>
+                </BalanceCard>
+              ))}
+            </BalanceGrid>
+          </BalanceSection>
+        )}
 
         <StatsGrid>
           <StatCard>

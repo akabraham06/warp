@@ -269,7 +269,8 @@ const TwooLogin = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { login, signInWithGoogle } = useAuth();
+  const [isSignup, setIsSignup] = useState(false);
+  const { login, signup, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -284,11 +285,16 @@ const TwooLogin = () => {
     setError('');
 
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      if (isSignup) {
+        await signup(email, password);
+        navigate('/dashboard');
+      } else {
+        await login(email, password);
+        navigate('/dashboard');
+      }
     } catch (error) {
-      console.error('Login error:', error);
-      setError('Failed to log in. Please check your credentials.');
+      console.error('Auth error:', error);
+      setError(isSignup ? 'Failed to create account. Please try again.' : 'Failed to log in. Please check your credentials.');
     } finally {
       setLoading(false);
     }
@@ -334,7 +340,7 @@ const TwooLogin = () => {
         </BrandSection>
 
         <LoginFormSection>
-          <FormTitle>Access Platform</FormTitle>
+          <FormTitle>{isSignup ? 'Create Account' : 'Access Platform'}</FormTitle>
           
           {error && <ErrorMessage>{error}</ErrorMessage>}
 
@@ -362,7 +368,7 @@ const TwooLogin = () => {
             </FormGroup>
 
             <Button type="submit" disabled={loading}>
-              {loading ? <LoadingSpinner /> : 'Sign In'}
+              {loading ? <LoadingSpinner /> : (isSignup ? 'Sign Up' : 'Sign In')}
             </Button>
           </Form>
 
@@ -371,6 +377,24 @@ const TwooLogin = () => {
           <GoogleButton onClick={handleGoogleLogin} disabled={loading}>
             {loading ? <LoadingSpinner /> : 'Continue with Google'}
           </GoogleButton>
+
+          <div style={{ marginTop: '1rem', textAlign: 'center' }}>
+            <button 
+              type="button" 
+              onClick={() => setIsSignup(!isSignup)}
+              style={{ 
+                background: 'transparent', 
+                border: 'none', 
+                color: '#767676', 
+                cursor: 'pointer', 
+                fontSize: 'clamp(14px, 2vw, 16px)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em'
+              }}
+            >
+              {isSignup ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+            </button>
+          </div>
 
           <BackLink to="/">
             ← Back to home

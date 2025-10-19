@@ -1,46 +1,15 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  signInWithPopup,
+  GoogleAuthProvider 
+} from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 import toast from 'react-hot-toast';
-
-// Mock Firebase authentication for testing
-const mockAuth = {
-  currentUser: null,
-  signInWithEmailAndPassword: async (email, password) => {
-    // Simulate authentication delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    if (email === 'test@example.com' && password === 'password') {
-      return {
-        user: {
-          uid: 'mock-user-123',
-          email: 'test@example.com',
-          displayName: 'Test User',
-          getIdToken: async () => 'mock-firebase-token-123'
-        }
-      };
-    } else {
-      throw new Error('Invalid credentials');
-    }
-  },
-  createUserWithEmailAndPassword: async (email, password) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    return {
-      user: {
-        uid: 'mock-user-123',
-        email: email,
-        displayName: email.split('@')[0],
-        getIdToken: async () => 'mock-firebase-token-123'
-      }
-    };
-  },
-  signOut: async () => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-  },
-  onAuthStateChanged: (callback) => {
-    // Simulate initial auth state
-    setTimeout(() => callback(null), 100);
-    return () => {}; // unsubscribe function
-  }
-};
 
 const AuthContext = createContext();
 
@@ -55,8 +24,25 @@ export function AuthProvider({ children }) {
   // Sign up with email and password
   async function signup(email, password, displayName) {
     try {
-      const result = await mockAuth.createUserWithEmailAndPassword(email, password);
+      const result = await createUserWithEmailAndPassword(auth, email, password);
       const user = result.user;
+      
+      // Create user document in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        displayName: displayName || user.email.split('@')[0],
+        createdAt: new Date(),
+        uid: user.uid,
+        balances: {
+          usd: 1000,
+          eur: 0,
+          gbp: 0,
+          jpy: 0,
+          aud: 0,
+          cad: 0,
+          mxn: 0
+        }
+      });
       
       toast.success('Account created successfully!');
       return result;
@@ -69,7 +55,7 @@ export function AuthProvider({ children }) {
   // Sign in with email and password
   async function login(email, password) {
     try {
-      const result = await mockAuth.signInWithEmailAndPassword(email, password);
+      const result = await signInWithEmailAndPassword(auth, email, password);
       setCurrentUser(result.user);
       toast.success('Welcome back!');
       return result;
@@ -82,11 +68,29 @@ export function AuthProvider({ children }) {
   // Sign in with Google
   async function signInWithGoogle() {
     try {
-      // Mock Google sign-in - simulate Google OAuth
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate OAuth flow
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
       
-      const result = await mockAuth.createUserWithEmailAndPassword('google@example.com', 'google');
-      setCurrentUser(result.user);
+      // Create or update user document in Firestore
+      await setDoc(doc(db, 'users', user.uid), {
+        email: user.email,
+        displayName: user.displayName || user.email.split('@')[0],
+        createdAt: new Date(),
+        uid: user.uid,
+        photoURL: user.photoURL,
+        balances: {
+          usd: 1000,
+          eur: 0,
+          gbp: 0,
+          jpy: 0,
+          aud: 0,
+          cad: 0,
+          mxn: 0
+        }
+      }, { merge: true }); // Use merge to update if exists
+      
+      setCurrentUser(user);
       toast.success('Welcome to Warp!');
       return result;
     } catch (error) {
@@ -98,7 +102,7 @@ export function AuthProvider({ children }) {
   // Sign out
   async function logout() {
     try {
-      await mockAuth.signOut();
+      await signOut(auth);
       setCurrentUser(null);
       toast.success('Signed out successfully');
     } catch (error) {
@@ -116,7 +120,7 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    const unsubscribe = mockAuth.onAuthStateChanged((user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setLoading(false);
     });
