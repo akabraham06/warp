@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
 import QuickConverter from '../components/QuickConverter';
+import CSSRotatingCircle from '../components/CSSRotatingCircle';
+import ScrollAnimations from '../components/ScrollAnimations';
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -16,10 +18,15 @@ const HorizontalContainer = styled.div`
   position: relative;
   width: 100%;
   height: 100vh;
+  padding-top: 80px; /* Account for fixed navigation */
   background-color: ${props => props.isInHorizontalSection ? '#000000' : '#ffffff'};
   color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   overflow: hidden;
   transition: background-color 0.8s ease, color 0.8s ease;
+  
+  @media (max-width: 768px) {
+    padding-top: 70px; /* Smaller padding on mobile */
+  }
 `;
 
 // Horizontal scroll wrapper
@@ -34,7 +41,7 @@ const HorizontalScrollWrapper = styled.div`
 // Individual section
 const Section = styled.div`
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 80px); /* Account for navigation padding */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -42,6 +49,10 @@ const Section = styled.div`
   flex-shrink: 0;
   padding: 0 5vw;
   box-sizing: border-box;
+  
+  @media (max-width: 768px) {
+    height: calc(100vh - 70px); /* Smaller height on mobile */
+  }
 `;
 
 // Section content wrapper
@@ -98,8 +109,9 @@ const SectionDescription = styled.p`
   line-height: clamp(20px, 3vw, 24px);
   letter-spacing: -0.5px;
   font-weight: 400;
-  color: #767676;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   margin-bottom: 2rem;
+  transition: color 0.8s ease;
 `;
 
 const BrandDescription = styled.p`
@@ -107,8 +119,9 @@ const BrandDescription = styled.p`
   line-height: clamp(18px, 2.5vw, 20px);
   letter-spacing: -0.5px;
   font-weight: 400;
-  color: #767676;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   margin-bottom: 2rem;
+  transition: color 0.8s ease;
 `;
 
 const ContactLinks = styled.ul`
@@ -153,7 +166,8 @@ const TimeInfo = styled.div`
   justify-content: space-between;
   margin-top: 2rem;
   font-size: clamp(14px, 2vw, 16px);
-  color: #767676;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
+  transition: color 0.8s ease;
 `;
 
 const TimeColumn = styled.div`
@@ -162,61 +176,7 @@ const TimeColumn = styled.div`
   gap: 0.5rem;
 `;
 
-// Visual elements
-const LargeNumber = styled.div`
-  font-size: clamp(200px, 30vw, 400px);
-  font-weight: 700;
-  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
-  opacity: 0.1;
-  line-height: 1;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 0;
-  transition: color 0.8s ease;
-`;
 
-const CircularGraphic = styled.div`
-  width: clamp(200px, 25vw, 400px);
-  height: clamp(200px, 25vw, 400px);
-  border: 2px solid #767676;
-  border-radius: 50%;
-  position: relative;
-  z-index: 1;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60%;
-    height: 60%;
-    border: 2px solid #767676;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-  }
-`;
-
-const SquareGraphic = styled.div`
-  width: clamp(200px, 25vw, 400px);
-  height: clamp(200px, 25vw, 400px);
-  border: 2px solid #767676;
-  position: relative;
-  z-index: 1;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 60%;
-    height: 60%;
-    background: #767676;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-  }
-`;
 
 const ServiceList = styled.ul`
   list-style: none;
@@ -226,10 +186,11 @@ const ServiceList = styled.ul`
   li {
     font-size: clamp(16px, 2.5vw, 20px);
     line-height: clamp(20px, 3vw, 24px);
-    color: #767676;
+    color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
     margin-bottom: 1rem;
     position: relative;
     padding-left: 1.5rem;
+    transition: color 0.8s ease;
     
     &::before {
       content: '•';
@@ -250,8 +211,9 @@ const ProcessTitle = styled.h3`
   line-height: clamp(24px, 3.5vw, 30px);
   letter-spacing: -1px;
   font-weight: 600;
-  color: #767676;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   margin-bottom: 1rem;
+  transition: color 0.8s ease;
 `;
 
 const ProcessDescription = styled.p`
@@ -259,8 +221,46 @@ const ProcessDescription = styled.p`
   line-height: clamp(18px, 2.5vw, 20px);
   letter-spacing: -0.5px;
   font-weight: 400;
-  color: #767676;
+  color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
+  transition: color 0.8s ease;
 `;
+
+// Large numeral component
+const LargeNumeral = styled.div`
+  font-size: clamp(200px, 40vw, 500px);
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 0.8;
+  letter-spacing: -0.02em;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  user-select: none;
+  pointer-events: none;
+`;
+
+// White square with black circle
+const WhiteSquareWithCircle = styled.div`
+  width: clamp(200px, 25vw, 400px);
+  height: clamp(200px, 25vw, 400px);
+  background: #ffffff;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &::before {
+    content: '';
+    width: 60%;
+    height: 60%;
+    background: #000000;
+    border-radius: 50%;
+  }
+`;
+
+
 
 // Single Navigation component
 const FixedNavigation = styled.nav`
@@ -286,7 +286,7 @@ const NavContent = styled.div`
 
 const Logo = styled.div`
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 400;
   color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   transition: color 0.8s ease;
 `;
@@ -352,12 +352,18 @@ const ConverterWrapper = styled.div`
 const TwooLandingPage = () => {
   const containerRef = useRef(null);
   const scrollWrapperRef = useRef(null);
-  const [scrollX, setScrollX] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isVerticalSection, setIsVerticalSection] = useState(false);
   const [isInHorizontalSection, setIsInHorizontalSection] = useState(true);
   const [allowVerticalScroll, setAllowVerticalScroll] = useState(false);
   const [horizontalProgress, setHorizontalProgress] = useState(0);
+  
+  // Debug logging for text movement
+  useEffect(() => {
+    const isFixed = horizontalProgress >= 0.4 && horizontalProgress <= 0.8;
+    console.log('Progress:', horizontalProgress.toFixed(2), 'Fixed:', isFixed);
+  }, [horizontalProgress]);
+  
   const [lastScrollY, setLastScrollY] = useState(0);
   const [savedHorizontalProgress, setSavedHorizontalProgress] = useState(0);
 
@@ -476,7 +482,7 @@ const TwooLandingPage = () => {
       {/* Single Fixed Navigation - Only One Set of Elements */}
       <FixedNavigation isInHorizontalSection={isInHorizontalSection}>
         <NavContent>
-          <Logo isInHorizontalSection={isInHorizontalSection}>WARP</Logo>
+          <Logo isInHorizontalSection={isInHorizontalSection}>Warp</Logo>
           <NavLinks isInHorizontalSection={isInHorizontalSection}>
             <Link to="/">Home</Link>
             <Link to="/login">Login</Link>
@@ -488,137 +494,210 @@ const TwooLandingPage = () => {
       {/* Horizontal parallax sections */}
       <HorizontalContainer ref={containerRef} isInHorizontalSection={isInHorizontalSection}>
         <HorizontalScrollWrapper ref={scrollWrapperRef}>
-          {/* Section 1: Hero */}
+          {/* Section 1: Hero - Twoo Brand */}
           <Section>
             <SectionContent>
               <LeftContent>
-                <BrandDescription>
-                  With a multicultural and open-minded approach to international
-                  financial technology, Warp designs and develops systems for cross-currency
-                  transactions, combining strategic thinking with
-                  refined user experience design.
-                </BrandDescription>
+                <ScrollAnimations animationType="slideInLeft" delay={0.2}>
+                  <BrandDescription isInHorizontalSection={isInHorizontalSection}>
+                    With a multicultural and open-minded approach to international
+                    functionalism, Twoo® designs and develops systems for brand, interactive, and product design, combining strategic thinking with
+                    refined graphic design aesthetics.
+                  </BrandDescription>
+                </ScrollAnimations>
                 
-                <SectionTitle isInHorizontalSection={isInHorizontalSection}>
-                  We are a fintech platform based in Barcelona, enabling global transactions.
-                </SectionTitle>
+                <ScrollAnimations animationType="fadeIn" delay={0.4}>
+                  <ContactLinks isInHorizontalSection={isInHorizontalSection}>
+                    <li><Link to="mailto:hello@wearetwoo.com" target="_blank">
+                      hello@wearetwoo.com
+                      <span className="underline"></span></Link></li>
+                    <li><Link to="https://www.instagram.com/wearetwoo" target="_blank">
+                      Instagram
+                      <span className="underline"></span></Link></li>
+                    <li><Link to="https://www.behance.net/wearetwoo" target="_blank">
+                      Behance
+                      <span className="underline"></span></Link></li>
+                    <li><Link to="https://www.linkedin.com/company/wearetwoo" target="_blank">
+                      Linkedin
+                      <span className="underline"></span></Link></li>
+                  </ContactLinks>
+                </ScrollAnimations>
                 
-                <ContactLinks isInHorizontalSection={isInHorizontalSection}>
-                  <li><Link to="mailto:hello@warp.com" target="_blank">
-                    hello@warp.com
-                    <span className="underline"></span></Link></li>
-                  <li><Link to="https://www.instagram.com/warp" target="_blank">
-                    Instagram
-                    <span className="underline"></span></Link></li>
-                  <li><Link to="https://www.behance.net/warp" target="_blank">
-                    Behance
-                    <span className="underline"></span></Link></li>
-                  <li><Link to="https://www.linkedin.com/company/warp" target="_blank">
-                    Linkedin
-                    <span className="underline"></span></Link></li>
-                </ContactLinks>
-                
-                <TimeInfo>
-                  <TimeColumn>
-                    <div>Based in Barcelona</div>
-                    <div>7:20 AM</div>
-                  </TimeColumn>
-                  <TimeColumn>
-                    <div>Working worldwide</div>
-                    <div>12:20 AM</div>
-                  </TimeColumn>
-                </TimeInfo>
+                <ScrollAnimations animationType="fadeIn" delay={0.6}>
+                  <TimeInfo isInHorizontalSection={isInHorizontalSection}>
+                    <TimeColumn>
+                      <div>Based in Barcelona</div>
+                      <div>11:31 AM</div>
+                    </TimeColumn>
+                    <TimeColumn>
+                      <div>Working worldwide</div>
+                      <div>4:31 AM</div>
+                    </TimeColumn>
+                  </TimeInfo>
+                </ScrollAnimations>
               </LeftContent>
               
               <RightContent>
-                <LargeNumber isInHorizontalSection={isInHorizontalSection}>2</LargeNumber>
+                <ScrollAnimations animationType="rotateIn" delay={0.3}>
+                  <CSSRotatingCircle 
+                    scrollProgress={horizontalProgress} 
+                    isInHorizontalSection={isInHorizontalSection} 
+                  />
+                </ScrollAnimations>
               </RightContent>
             </SectionContent>
           </Section>
 
-          {/* Section 2: Philosophy */}
+          {/* Section 2: Technology, Functionality & Aesthetics */}
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>
-                  Technology, Functionality &amp; Aesthetics.
-                  <br />
-                  All Together.
-                </SectionSubtitle>
-                
-                <SectionDescription>
-                  For us, cross-currency transaction design is, above all, planning the product as a whole, and not
-                  just its external appearance.
-                  <br /> <br />
-                  Our practice is based on a Multidisciplinary Integrated Fintech Approach, where functionality and aesthetics are developmental
-                  criteria alongside technology, from the beginning.
-                </SectionDescription>
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  gap: '3rem', 
+                  width: '100%',
+                  maxWidth: '600px',
+                  position: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? 'fixed' : 'relative',
+                  left: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? '0px' : 'auto',
+                  top: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? '50%' : 'auto',
+                  transform: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? 'translateY(-50%)' : 'none',
+                  transition: 'all 0.1s ease-out',
+                  opacity: Math.min(1, horizontalProgress * 2),
+                  transform: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? 
+                    'translateY(-50%)' : 
+                    `translateY(${20 - horizontalProgress * 20}px)`
+                }}>
+                  <SectionSubtitle 
+                    isInHorizontalSection={isInHorizontalSection}
+                    style={{
+                      opacity: Math.min(1, horizontalProgress * 30),
+                      transform: `translateX(${-30 + horizontalProgress * 30}px)`,
+                      transition: 'all 0.3s ease-out'
+                    }}
+                  >
+                    Technology, Functionality &amp; Aesthetics.
+                    <br />
+                    All Together.
+                  </SectionSubtitle>
+                  
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr 1fr', 
+                    gap: '2rem',
+                    alignItems: 'start'
+                  }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '1.5rem',
+                      opacity: Math.min(1, horizontalProgress * 25),
+                      transform: `translateX(${-20 + horizontalProgress * 20}px)`,
+                      transition: 'all 0.4s ease-out'
+                    }}>
+                      <SectionDescription isInHorizontalSection={isInHorizontalSection}>
+                        For us, design is, above all, planning the product as a whole, and not just its external appearance.
+                      </SectionDescription>
+                      
+                      <SectionDescription isInHorizontalSection={isInHorizontalSection}>
+                        Our practice is based on a Multidisciplinary Integrated Design Approach, where functionality and aesthetics are developmental criteria alongside technology, from the beginning.
+                      </SectionDescription>
+                    </div>
+                    
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '1.5rem',
+                      opacity: Math.min(1, horizontalProgress * 20),
+                      transform: `translateX(${-15 + horizontalProgress * 15}px)`,
+                      transition: 'all 0.5s ease-out'
+                    }}>
+                      <SectionDescription isInHorizontalSection={isInHorizontalSection}>
+                        We believe in creating solutions that are not only beautiful but also functional and technologically advanced.
+                      </SectionDescription>
+                      
+                      <SectionDescription isInHorizontalSection={isInHorizontalSection}>
+                        Every project begins with understanding the user's needs and ends with a product that exceeds expectations in both form and function.
+                      </SectionDescription>
+                    </div>
+                  </div>
+                </div>
               </LeftContent>
               
               <RightContent>
-                <CircularGraphic />
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'flex-start', 
+                  width: '100%',
+                  transform: `translateX(${Math.min(horizontalProgress * 800, 600)}px)`,
+                  transition: 'transform 0.1s ease-out'
+                }}>
+                  <WhiteSquareWithCircle />
+                </div>
               </RightContent>
             </SectionContent>
           </Section>
 
-          {/* Section 3: Process */}
+          {/* Section 3: Multidisciplinary Integrated Design Approach */}
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionTitle isInHorizontalSection={isInHorizontalSection}>
+                <SectionTitle 
+                  isInHorizontalSection={isInHorizontalSection} 
+                  style={{ 
+                    display: 'block',
+                    transform: `translateX(${Math.min(horizontalProgress * 600, 400)}px)`,
+                    transition: 'transform 0.1s ease-out'
+                  }}
+                >
                   Multidisciplinary
                   <br />
                   Integrated Design
                   <br />
                   Approach.
                 </SectionTitle>
-                
-                <ProcessBlock>
-                  <ProcessTitle>Functionality</ProcessTitle>
-                  <ProcessDescription>
-                    We combine creativity with usability. We design by asking questions and looking for possible solutions to
-                    them. It is a constructive process, we investigate and build by
-                    testing out hypotheses.
-                  </ProcessDescription>
-                </ProcessBlock>
-                
-                <ProcessBlock>
-                  <ProcessTitle>Aesthetics</ProcessTitle>
-                  <ProcessDescription>
-                    Forms that communicate an idea. Style is not a matter of appearance, it's a chosen medium to
-                    communicate an idea. It's not just form as beauty but a thought, a
-                    realization turned into visuals.
-                  </ProcessDescription>
-                </ProcessBlock>
               </LeftContent>
               
               <RightContent>
-                <SquareGraphic />
               </RightContent>
             </SectionContent>
           </Section>
 
-          {/* Section 4: Services */}
+          {/* Section 4: Our Process & What We Offer */}
           <Section>
             <SectionContent>
               <LeftContent>
-                <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>What we offer</SectionSubtitle>
-                <SectionDescription>
-                  We help companies to design and build first-class products and
-                  services that connect with people. Focusing on digital, we work on a
-                  variety of projects ranging from brand identity systems to product
-                  design and development.
-                </SectionDescription>
-                
-                <ServiceList isInHorizontalSection={isInHorizontalSection}>
-                  <li>Global FX Transfers</li>
-                  <li>Stablecoin Integration</li>
-                  <li>Multi-Chain DEX Aggregation</li>
-                  <li>Hybrid Routing</li>
-                </ServiceList>
+                <ProcessBlock>
+                  <ProcessTitle isInHorizontalSection={isInHorizontalSection}>Our process</ProcessTitle>
+                  <ProcessDescription isInHorizontalSection={isInHorizontalSection}>
+                    Think, do, try, repeat... There is no magic trick involved. We care about strategy just as much as we care about the craft. Our process focuses on defining a clear goal and dedicate as much time as possible working relentlessly to reach it.
+                  </ProcessDescription>
+                </ProcessBlock>
               </LeftContent>
               
               <RightContent>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
+                  <ProcessBlock>
+                    <ProcessTitle isInHorizontalSection={isInHorizontalSection}>What we offer</ProcessTitle>
+                    <ProcessDescription isInHorizontalSection={isInHorizontalSection}>
+                      We help companies to design and build first-class products and services that connect with people. Focusing on digital, we work on a variety of projects ranging from brand identity systems to product design and development.
+                    </ProcessDescription>
+                    <ServiceList isInHorizontalSection={isInHorizontalSection}>
+                      <li>Brand Identity</li>
+                      <li>Concept</li>
+                      <li>Product & Service design</li>
+                      <li>Development</li>
+                    </ServiceList>
+                  </ProcessBlock>
+                </div>
+              </RightContent>
+            </SectionContent>
+          </Section>
+
+          {/* Section 5: Smart Craft Tagline */}
+          <Section>
+            <SectionContent>
+              <LeftContent>
                 <SectionTitle isInHorizontalSection={isInHorizontalSection}>
                   Smart craft
                   <br />
@@ -626,31 +705,35 @@ const TwooLandingPage = () => {
                   <br />
                   and services.
                 </SectionTitle>
-              </RightContent>
-            </SectionContent>
-          </Section>
-
-          {/* Section 5: Contact */}
-          <Section>
-            <SectionContent>
-              <LeftContent>
-                <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>Contact</SectionSubtitle>
-                <SectionDescription>
-                  Warp is available for commissioned projects and collaborations.
-                  No geographical restrictions, from local projects to global
-                  clients.
+                
+                <SectionDescription isInHorizontalSection={isInHorizontalSection}>
+                  We are a design studio based in Barcelona, working worldwide. Our approach combines strategic thinking with refined graphic design aesthetics, creating systems for brand, interactive, and product design that connect with people on a global scale.
                 </SectionDescription>
                 
-                <ContactLinks isInHorizontalSection={isInHorizontalSection}>
-                  <li>For work inquires</li>
-                  <li><Link to="mailto:hello@warp.com" target="_blank">
-                    hello@warp.com
-                    <span className="underline"></span></Link></li>
-                </ContactLinks>
+                <ProcessBlock>
+                  <ProcessTitle isInHorizontalSection={isInHorizontalSection}>Our Mission</ProcessTitle>
+                  <ProcessDescription isInHorizontalSection={isInHorizontalSection}>
+                    To help companies design and build first-class products and services that connect with people. We focus on digital solutions while maintaining the highest standards of craft and innovation.
+                  </ProcessDescription>
+                </ProcessBlock>
               </LeftContent>
               
               <RightContent>
-                <LargeNumber isInHorizontalSection={isInHorizontalSection}>2</LargeNumber>
+                <SectionDescription isInHorizontalSection={isInHorizontalSection}>
+                  With over a decade of experience in multidisciplinary design, we bring together technology, functionality, and aesthetics to create meaningful digital experiences. Our team works across time zones to deliver exceptional results for clients worldwide.
+                </SectionDescription>
+                
+                <ProcessBlock>
+                  <ProcessTitle isInHorizontalSection={isInHorizontalSection}>What We Do</ProcessTitle>
+                  <ServiceList isInHorizontalSection={isInHorizontalSection}>
+                    <li>Brand Identity & Strategy</li>
+                    <li>Digital Product Design</li>
+                    <li>Interactive Experiences</li>
+                    <li>Service Design</li>
+                    <li>Development & Implementation</li>
+                    <li>Creative Direction</li>
+                  </ServiceList>
+                </ProcessBlock>
               </RightContent>
             </SectionContent>
           </Section>
