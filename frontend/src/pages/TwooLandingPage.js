@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import QuickConverter from '../components/QuickConverter';
 import CSSRotatingCircle from '../components/CSSRotatingCircle';
 import ScrollAnimations from '../components/ScrollAnimations';
+import RotatingBackgroundCircle from '../components/RotatingBackgroundCircle';
 
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -21,7 +22,7 @@ const HorizontalContainer = styled.div`
   padding-top: 80px; /* Account for fixed navigation */
   background-color: ${props => props.isInHorizontalSection ? '#000000' : '#ffffff'};
   color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
-  overflow: hidden;
+  overflow: visible; /* Allow overflow for ring visibility */
   transition: background-color 0.8s ease, color 0.8s ease;
   
   @media (max-width: 768px) {
@@ -41,7 +42,7 @@ const HorizontalScrollWrapper = styled.div`
 // Individual section
 const Section = styled.div`
   width: 100vw;
-  height: calc(100vh - 80px); /* Account for navigation padding */
+  height: 100vh; /* Full height */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -51,7 +52,7 @@ const Section = styled.div`
   box-sizing: border-box;
   
   @media (max-width: 768px) {
-    height: calc(100vh - 70px); /* Smaller height on mobile */
+    height: 100vh; /* Full height on mobile too */
   }
 `;
 
@@ -92,6 +93,25 @@ const SectionTitle = styled.h1`
   color: ${props => props.isInHorizontalSection ? '#ffffff' : '#000000'};
   margin-bottom: 2rem;
   transition: color 0.8s ease;
+  opacity: ${props => props.opacity || 1};
+  transform: ${props => props.transform || 'none'};
+  transition: all 0.3s ease;
+`;
+
+// Large header text for last section
+const LargeHeaderText = styled.h1`
+  font-size: clamp(72px, 12vw, 144px);
+  line-height: clamp(68px, 11vw, 136px);
+  letter-spacing: -3px;
+  font-weight: 700;
+  margin: 0;
+  color: ${props => props.isVerticalSection ? '#000000' : '#ffffff'};
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  opacity: ${props => props.opacity || 1};
+  transform: ${props => props.transform || 'none'};
+  transition: all 0.5s ease;
 `;
 
 const SectionSubtitle = styled.h2`
@@ -276,6 +296,19 @@ const FixedNavigation = styled.nav`
   transition: background 0.8s ease, backdrop-filter 0.8s ease, border-bottom 0.8s ease;
 `;
 
+// Fixed SVG component - transitions from normal to fixed position
+const FixedSVG = styled.div`
+  position: ${props => props.isFixed ? 'fixed' : 'absolute'};
+  left: ${props => props.isFixed ? '50px' : '0'};
+  right: ${props => props.isFixed ? 'auto' : '0'};
+  top: 50%;
+  transform: translateY(-50%) translateX(${props => props.movement || '0px'});
+  z-index: ${props => props.isFixed ? '1000' : '10'};
+  width: auto;
+  height: auto;
+  transition: all 0.3s ease;
+`;
+
 const NavContent = styled.div`
   max-width: 1200px;
   margin: 0 auto;
@@ -357,16 +390,43 @@ const TwooLandingPage = () => {
   const [isInHorizontalSection, setIsInHorizontalSection] = useState(true);
   const [allowVerticalScroll, setAllowVerticalScroll] = useState(false);
   const [horizontalProgress, setHorizontalProgress] = useState(0);
-  
-  // Debug logging for text movement
-  useEffect(() => {
-    const isFixed = horizontalProgress >= 0.4 && horizontalProgress <= 0.8;
-    console.log('Progress:', horizontalProgress.toFixed(2), 'Fixed:', isFixed);
-  }, [horizontalProgress]);
-  
+  const [isSvgSticky, setIsSvgSticky] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [savedHorizontalProgress, setSavedHorizontalProgress] = useState(0);
+  const svgRef = useRef(null);
+  const thirdSectionRef = useRef(null);
+  const [thirdSectionTextScale, setThirdSectionTextScale] = useState(1);
+  const [thirdSectionTextOpacity, setThirdSectionTextOpacity] = useState(1);
+  const [lastSectionTextOpacity, setLastSectionTextOpacity] = useState(0);
+  const [lastSectionTextScale, setLastSectionTextScale] = useState(0.8);
 
+  // SVG translates and rotates to the right on scroll
+  useEffect(() => {
+    if (!svgRef.current) return;
+
+    // Calculate movement and rotation based on horizontal progress
+    const movement = horizontalProgress * 500; // Move 500px to the right
+    const rotation = horizontalProgress * 360; // Rotate 360 degrees
+    
+    // Apply translation and rotation
+    svgRef.current.style.transform = `translateY(-50%) translateX(${movement}px) rotate(${rotation}deg)`;
+  }, [horizontalProgress]);
+
+
+  // Text effects based on scroll progress
+  useEffect(() => {
+    // Third section text effects - scale up and fade out as we approach last section
+    const thirdSectionProgress = Math.max(0, Math.min(1, (horizontalProgress - 0.5) / 0.3));
+    const thirdSectionScale = 1 + thirdSectionProgress * 0.5; // Scale up to 1.5x
+    setThirdSectionTextScale(thirdSectionScale);
+    setThirdSectionTextOpacity(1 - thirdSectionProgress * 0.7); // Fade to 30% opacity
+
+    // Last section text effects - fade in and scale up when we reach it
+    const lastSectionProgress = Math.max(0, Math.min(1, (horizontalProgress - 0.7) / 0.3));
+    const lastSectionScale = 0.8 + lastSectionProgress * 0.2; // Scale from 0.8 to 1.0
+    setLastSectionTextOpacity(lastSectionProgress);
+    setLastSectionTextScale(lastSectionScale);
+  }, [horizontalProgress]);
 
   useEffect(() => {
     const handleScroll = (e) => {
@@ -375,7 +435,7 @@ const TwooLandingPage = () => {
       setLastScrollY(currentScrollY);
 
       // If we're scrolling up and we're in vertical section, go back to horizontal
-      if (scrollDirection === 'up' && isVerticalSection && currentScrollY < 100) {
+      if (scrollDirection === 'up' && isVerticalSection && currentScrollY < 50) {
         setIsVerticalSection(false);
         setIsInHorizontalSection(true);
         setAllowVerticalScroll(false);
@@ -383,7 +443,7 @@ const TwooLandingPage = () => {
         setHorizontalProgress(savedHorizontalProgress);
         
         // Restore the horizontal scroll position
-        const translateX = -savedHorizontalProgress * (500 - 100);
+        const translateX = -savedHorizontalProgress * (400 - 100);
         if (scrollWrapperRef.current) {
           scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
         }
@@ -405,7 +465,7 @@ const TwooLandingPage = () => {
       const scrollDirection = e.deltaY > 0 ? 'down' : 'up';
 
       // If we're in vertical section and scrolling up near the top, go back to horizontal
-      if (isVerticalSection && scrollDirection === 'up' && currentScrollY < 50) {
+      if (isVerticalSection && scrollDirection === 'up' && currentScrollY < 30) {
         setIsVerticalSection(false);
         setIsInHorizontalSection(true);
         setAllowVerticalScroll(false);
@@ -413,7 +473,7 @@ const TwooLandingPage = () => {
         setHorizontalProgress(savedHorizontalProgress);
         
         // Restore the horizontal scroll position
-        const translateX = -savedHorizontalProgress * (500 - 100);
+        const translateX = -savedHorizontalProgress * (400 - 100);
         if (scrollWrapperRef.current) {
           scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
         }
@@ -431,18 +491,18 @@ const TwooLandingPage = () => {
         setHorizontalProgress(newProgress);
         
         // Update horizontal scroll position
-        const translateX = -newProgress * (500 - 100); // 500vw - 100vw
+        const translateX = -newProgress * (400 - 100); // 400vw - 100vw (4 sections instead of 5)
         if (scrollWrapperRef.current) {
           scrollWrapperRef.current.style.transform = `translateX(${translateX}vw)`;
         }
         
-        // Start transition when we're 90% through horizontal scroll
-        if (newProgress > 0.9 && !isTransitioning) {
+        // Start transition when we're 95% through horizontal scroll
+        if (newProgress > 0.95 && !isTransitioning) {
           setIsTransitioning(true);
         }
         
         // Complete horizontal scroll and enable vertical
-        if (newProgress >= 1 && !allowVerticalScroll) {
+        if (newProgress >= 1.0 && !allowVerticalScroll) {
           // Save the current progress before switching to vertical
           setSavedHorizontalProgress(newProgress);
           
@@ -452,7 +512,7 @@ const TwooLandingPage = () => {
           
           // Ensure horizontal content is fully scrolled
           if (scrollWrapperRef.current) {
-            scrollWrapperRef.current.style.transform = `translateX(-400vw)`;
+            scrollWrapperRef.current.style.transform = `translateX(-300vw)`;
           }
           
           // Allow normal scrolling to resume
@@ -491,34 +551,40 @@ const TwooLandingPage = () => {
         </NavContent>
       </FixedNavigation>
 
+      {/* SVG moved back to original position for proper detection */}
+
       {/* Horizontal parallax sections */}
       <HorizontalContainer ref={containerRef} isInHorizontalSection={isInHorizontalSection}>
         <HorizontalScrollWrapper ref={scrollWrapperRef}>
-          {/* Section 1: Hero - Twoo Brand */}
+          {/* Section 1: Hero - Warp Platform */}
           <Section>
             <SectionContent>
               <LeftContent>
                 <ScrollAnimations animationType="slideInLeft" delay={0.2}>
+                  <SectionSubtitle isInHorizontalSection={isInHorizontalSection}>
+                    The Future of Cross-Border Payments
+                  </SectionSubtitle>
                   <BrandDescription isInHorizontalSection={isInHorizontalSection}>
-                    With a multicultural and open-minded approach to international
-                    functionalism, Twoo® designs and develops systems for brand, interactive, and product design, combining strategic thinking with
-                    refined graphic design aesthetics.
+                    Warp revolutionizes international transfers with intelligent multi-chain routing. 
+                    Our advanced backend scans 15+ exchanges across multiple networks to find the 
+                    fastest, most cost-effective path for your money—delivering superior rates 
+                    and same-day settlement.
                   </BrandDescription>
                 </ScrollAnimations>
                 
                 <ScrollAnimations animationType="fadeIn" delay={0.4}>
                   <ContactLinks isInHorizontalSection={isInHorizontalSection}>
-                    <li><Link to="mailto:hello@wearetwoo.com" target="_blank">
-                      hello@wearetwoo.com
+                    <li><Link to="mailto:hello@warp.com" target="_blank">
+                      hello@warp.com
                       <span className="underline"></span></Link></li>
-                    <li><Link to="https://www.instagram.com/wearetwoo" target="_blank">
-                      Instagram
+                    <li><Link to="https://www.twitter.com/warp" target="_blank">
+                      Twitter
                       <span className="underline"></span></Link></li>
-                    <li><Link to="https://www.behance.net/wearetwoo" target="_blank">
-                      Behance
-                      <span className="underline"></span></Link></li>
-                    <li><Link to="https://www.linkedin.com/company/wearetwoo" target="_blank">
+                    <li><Link to="https://www.linkedin.com/company/warp" target="_blank">
                       Linkedin
+                      <span className="underline"></span></Link></li>
+                    <li><Link to="https://www.github.com/warp" target="_blank">
+                      GitHub
                       <span className="underline"></span></Link></li>
                   </ContactLinks>
                 </ScrollAnimations>
@@ -526,12 +592,12 @@ const TwooLandingPage = () => {
                 <ScrollAnimations animationType="fadeIn" delay={0.6}>
                   <TimeInfo isInHorizontalSection={isInHorizontalSection}>
                     <TimeColumn>
-                      <div>Based in Barcelona</div>
-                      <div>11:31 AM</div>
+                      <div>Global Operations</div>
+                      <div>24/7 Support</div>
                     </TimeColumn>
                     <TimeColumn>
-                      <div>Working worldwide</div>
-                      <div>4:31 AM</div>
+                      <div>Same-Day Settlement</div>
+                      <div>Real-Time Rates</div>
                     </TimeColumn>
                   </TimeInfo>
                 </ScrollAnimations>
@@ -549,7 +615,7 @@ const TwooLandingPage = () => {
           </Section>
 
           {/* Section 2: Technology, Functionality & Aesthetics */}
-          <Section>
+          <Section style={{ overflow: 'visible' }}>
             <SectionContent>
               <LeftContent>
                 <div style={{ 
@@ -558,27 +624,25 @@ const TwooLandingPage = () => {
                   gap: '3rem', 
                   width: '100%',
                   maxWidth: '600px',
-                  position: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? 'fixed' : 'relative',
-                  left: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? '0px' : 'auto',
-                  top: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? '50%' : 'auto',
-                  transform: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? 'translateY(-50%)' : 'none',
-                  transition: 'all 0.1s ease-out',
-                  opacity: Math.min(1, horizontalProgress * 2),
-                  transform: horizontalProgress >= 0.4 && horizontalProgress <= 0.8 ? 
-                    'translateY(-50%)' : 
-                    `translateY(${20 - horizontalProgress * 20}px)`
+                  position: 'relative', // Always relative to prevent clipping
+                  left: 'auto',
+                  top: 'auto',
+                  transform: `translateY(${10 - horizontalProgress * 10}px)`,
+                  transition: 'all 0.2s ease-out',
+                  opacity: 1,
+                  zIndex: 10 // Ensure it's above other elements
                 }}>
                   <SectionSubtitle 
                     isInHorizontalSection={isInHorizontalSection}
                     style={{
-                      opacity: Math.min(1, horizontalProgress * 30),
-                      transform: `translateX(${-30 + horizontalProgress * 30}px)`,
+                      opacity: 1, // Keep text visible
+                      transform: `translateX(${-10 + horizontalProgress * 10}px)`,
                       transition: 'all 0.3s ease-out'
                     }}
                   >
-                    Technology, Functionality &amp; Aesthetics.
+                    Multi-Chain Liquidity
                     <br />
-                    All Together.
+                    Aggregation Engine.
                   </SectionSubtitle>
                   
                   <div style={{ 
@@ -591,16 +655,16 @@ const TwooLandingPage = () => {
                       display: 'flex', 
                       flexDirection: 'column', 
                       gap: '1.5rem',
-                      opacity: Math.min(1, horizontalProgress * 25),
-                      transform: `translateX(${-20 + horizontalProgress * 20}px)`,
+                      opacity: 1, // Keep text visible
+                      transform: `translateX(${-5 + horizontalProgress * 5}px)`,
                       transition: 'all 0.4s ease-out'
                     }}>
                       <SectionDescription isInHorizontalSection={isInHorizontalSection}>
-                        For us, design is, above all, planning the product as a whole, and not just its external appearance.
+                        Our intelligent routing system scans liquidity pools across Algorand, Polygon, zkSync, and other networks to find the optimal settlement path for every transaction.
                       </SectionDescription>
                       
                       <SectionDescription isInHorizontalSection={isInHorizontalSection}>
-                        Our practice is based on a Multidisciplinary Integrated Design Approach, where functionality and aesthetics are developmental criteria alongside technology, from the beginning.
+                        By aggregating rates from both centralized exchanges (CEX) and decentralized exchanges (DEX), we ensure you always get the best possible exchange rate.
                       </SectionDescription>
                     </div>
                     
@@ -608,16 +672,16 @@ const TwooLandingPage = () => {
                       display: 'flex', 
                       flexDirection: 'column', 
                       gap: '1.5rem',
-                      opacity: Math.min(1, horizontalProgress * 20),
-                      transform: `translateX(${-15 + horizontalProgress * 15}px)`,
+                      opacity: 1, // Keep text visible
+                      transform: `translateX(${-3 + horizontalProgress * 3}px)`,
                       transition: 'all 0.5s ease-out'
                     }}>
                       <SectionDescription isInHorizontalSection={isInHorizontalSection}>
-                        We believe in creating solutions that are not only beautiful but also functional and technologically advanced.
+                        Transaction batching and optimization algorithms reduce network fees, with all savings passed directly to you for maximum value.
                       </SectionDescription>
                       
                       <SectionDescription isInHorizontalSection={isInHorizontalSection}>
-                        Every project begins with understanding the user's needs and ends with a product that exceeds expectations in both form and function.
+                        Our transparent rate comparison shows you exactly how much you save compared to traditional banks and competitors like Wise or Remitly.
                       </SectionDescription>
                     </div>
                   </div>
@@ -625,13 +689,17 @@ const TwooLandingPage = () => {
               </LeftContent>
               
               <RightContent>
-                <div style={{ 
-                  display: 'flex', 
-                  justifyContent: 'flex-start', 
-                  width: '100%',
-                  transform: `translateX(${Math.min(horizontalProgress * 800, 600)}px)`,
-                  transition: 'transform 0.1s ease-out'
-                }}>
+                <div 
+                  ref={svgRef}
+                  style={{ 
+                    position: 'absolute',
+                    left: '0',
+                    right: '0',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    zIndex: 10
+                  }}
+                >
                   <WhiteSquareWithCircle />
                 </div>
               </RightContent>
@@ -639,22 +707,23 @@ const TwooLandingPage = () => {
           </Section>
 
           {/* Section 3: Multidisciplinary Integrated Design Approach */}
-          <Section>
+          <Section ref={thirdSectionRef}>
             <SectionContent>
               <LeftContent>
                 <SectionTitle 
-                  isInHorizontalSection={isInHorizontalSection} 
+                  isInHorizontalSection={isInHorizontalSection}
+                  opacity={thirdSectionTextOpacity}
+                  transform={`translateX(${Math.min(horizontalProgress * 600, 400)}px) scale(${thirdSectionTextScale})`}
                   style={{ 
                     display: 'block',
-                    transform: `translateX(${Math.min(horizontalProgress * 600, 400)}px)`,
                     transition: 'transform 0.1s ease-out'
                   }}
                 >
-                  Multidisciplinary
+                  Superior Exchange
                   <br />
-                  Integrated Design
+                  Rate Guarantee
                   <br />
-                  Approach.
+                  Technology.
                 </SectionTitle>
               </LeftContent>
               
@@ -663,78 +732,19 @@ const TwooLandingPage = () => {
             </SectionContent>
           </Section>
 
-          {/* Section 4: Our Process & What We Offer */}
-          <Section>
-            <SectionContent>
-              <LeftContent>
-                <ProcessBlock>
-                  <ProcessTitle isInHorizontalSection={isInHorizontalSection}>Our process</ProcessTitle>
-                  <ProcessDescription isInHorizontalSection={isInHorizontalSection}>
-                    Think, do, try, repeat... There is no magic trick involved. We care about strategy just as much as we care about the craft. Our process focuses on defining a clear goal and dedicate as much time as possible working relentlessly to reach it.
-                  </ProcessDescription>
-                </ProcessBlock>
-              </LeftContent>
-              
-              <RightContent>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', width: '100%' }}>
-                  <ProcessBlock>
-                    <ProcessTitle isInHorizontalSection={isInHorizontalSection}>What we offer</ProcessTitle>
-                    <ProcessDescription isInHorizontalSection={isInHorizontalSection}>
-                      We help companies to design and build first-class products and services that connect with people. Focusing on digital, we work on a variety of projects ranging from brand identity systems to product design and development.
-                    </ProcessDescription>
-                    <ServiceList isInHorizontalSection={isInHorizontalSection}>
-                      <li>Brand Identity</li>
-                      <li>Concept</li>
-                      <li>Product & Service design</li>
-                      <li>Development</li>
-                    </ServiceList>
-                  </ProcessBlock>
-                </div>
-              </RightContent>
-            </SectionContent>
-          </Section>
-
-          {/* Section 5: Smart Craft Tagline */}
-          <Section>
-            <SectionContent>
-              <LeftContent>
-                <SectionTitle isInHorizontalSection={isInHorizontalSection}>
-                  Smart craft
-                  <br />
-                  for digital products
-                  <br />
-                  and services.
-                </SectionTitle>
-                
-                <SectionDescription isInHorizontalSection={isInHorizontalSection}>
-                  We are a design studio based in Barcelona, working worldwide. Our approach combines strategic thinking with refined graphic design aesthetics, creating systems for brand, interactive, and product design that connect with people on a global scale.
-                </SectionDescription>
-                
-                <ProcessBlock>
-                  <ProcessTitle isInHorizontalSection={isInHorizontalSection}>Our Mission</ProcessTitle>
-                  <ProcessDescription isInHorizontalSection={isInHorizontalSection}>
-                    To help companies design and build first-class products and services that connect with people. We focus on digital solutions while maintaining the highest standards of craft and innovation.
-                  </ProcessDescription>
-                </ProcessBlock>
-              </LeftContent>
-              
-              <RightContent>
-                <SectionDescription isInHorizontalSection={isInHorizontalSection}>
-                  With over a decade of experience in multidisciplinary design, we bring together technology, functionality, and aesthetics to create meaningful digital experiences. Our team works across time zones to deliver exceptional results for clients worldwide.
-                </SectionDescription>
-                
-                <ProcessBlock>
-                  <ProcessTitle isInHorizontalSection={isInHorizontalSection}>What We Do</ProcessTitle>
-                  <ServiceList isInHorizontalSection={isInHorizontalSection}>
-                    <li>Brand Identity & Strategy</li>
-                    <li>Digital Product Design</li>
-                    <li>Interactive Experiences</li>
-                    <li>Service Design</li>
-                    <li>Development & Implementation</li>
-                    <li>Creative Direction</li>
-                  </ServiceList>
-                </ProcessBlock>
-              </RightContent>
+          {/* Section 4: Large Header with Rotating Circle */}
+          <Section style={{ position: 'relative', overflow: 'visible', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <RotatingBackgroundCircle isVerticalSection={isVerticalSection} />
+            <SectionContent style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+              <LargeHeaderText 
+                isVerticalSection={isVerticalSection}
+                opacity={lastSectionTextOpacity}
+                transform={`scale(${lastSectionTextScale})`}
+              >
+                Change the way
+                <br />
+                you exchange
+              </LargeHeaderText>
             </SectionContent>
           </Section>
         </HorizontalScrollWrapper>
