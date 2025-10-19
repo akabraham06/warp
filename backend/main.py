@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi import Header
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 import asyncio
 import aiohttp
 import json
@@ -93,6 +93,8 @@ class QuoteResponse(BaseModel):
     crypto_path: Dict
     timestamp: str
     processing_time_ms: int
+    route_options: Optional[List[Dict[str, Any]]] = None
+    on_ramp_details: Optional[Dict[str, Any]] = None
 
 class TransferExecuteRequest(BaseModel):
     quote_id: str
@@ -289,12 +291,30 @@ async def find_best_crypto_path(amount: float, from_currency: str, to_currency: 
     chains = ['polygon', 'zksync', 'arbitrum', 'optimism']
     best_path = None
     best_final_amount = 0
+    routes: List[Dict[str, Any]] = []
     
     for chain in chains:
         print(f"🔗 Testing {chain} chain...")
         try:
             dex_swap = await call_1inch_api(crypto_amount, "USDC", to_currency, chain)
             final_amount = dex_swap['final_amount']
+            effective_rate = (final_amount / amount) if amount else 0
+            projected_batched_rate = model_batching_savings(effective_rate, amount)
+            projected_batched_amount = amount * projected_batched_rate
+            route_info = {
+                'chain': chain,
+                'path': f"{from_currency} → USDC ({on_ramp['source']}) → {to_currency} ({chain} via 1inch)",
+                'expected_final_amount': final_amount,
+                'effective_rate': effective_rate,
+                'projected_batched_amount': projected_batched_amount,
+                'projected_batched_rate': projected_batched_rate,
+                'dex_rate': dex_swap['rate'],
+                'dex_source': dex_swap['source'],
+                'on_ramp_source': on_ramp['source'],
+                'on_ramp_rate': on_ramp['rate'],
+                'on_ramp_crypto_amount': crypto_amount
+            }
+            routes.append(route_info)
             
             if final_amount > best_final_amount:
                 best_final_amount = final_amount
@@ -303,7 +323,10 @@ async def find_best_crypto_path(amount: float, from_currency: str, to_currency: 
                     'on_ramp': on_ramp,
                     'dex_swap': dex_swap,
                     'final_amount': final_amount,
-                    'path': f"{from_currency} → USDC (Coinbase) → {to_currency} ({chain} via 1inch)"
+                    'path': route_info['path'],
+                    'effective_rate': effective_rate,
+                    'projected_batched_rate': projected_batched_rate,
+                    'projected_batched_amount': projected_batched_amount
                 }
         except Exception as e:
             print(f"Error testing {chain}: {e}")
@@ -312,9 +335,23 @@ async def find_best_crypto_path(amount: float, from_currency: str, to_currency: 
     processing_time = (datetime.now() - start_time).total_seconds() * 1000
     
     if best_path:
+        for route in routes:
+            difference_from_best = best_final_amount - route['expected_final_amount']
+            difference_from_best_batched = best_path['projected_batched_amount'] - route['projected_batched_amount']
+            route['difference_from_best'] = difference_from_best
+            route['difference_from_best_batched'] = difference_from_best_batched
+            if best_final_amount:
+                route['difference_pct'] = (difference_from_best / best_final_amount) * 100
+            else:
+                route['difference_pct'] = 0
+            # Flag best route for UI clarity
+            route['is_best'] = route['chain'] == best_path['chain']
+        best_path['routes_considered'] = len(routes)
         return {
             'success': True,
             'path': best_path,
+            'routes': routes,
+            'on_ramp': on_ramp,
             'processing_time_ms': processing_time
         }
     else:
@@ -340,11 +377,23 @@ async def calculate_best_quote(send_currency: str, receive_currency: str, send_a
     print("🪙 Finding best crypto path...")
     crypto_path_data = await find_best_crypto_path(send_amount, send_currency, receive_currency)
     
+    route_options = None
+    on_ramp_details = None
     if crypto_path_data['success']:
-        crypto_final_amount = crypto_path_data['path']['final_amount']
-        our_rate = model_batching_savings(crypto_final_amount / send_amount, send_amount)
+        best_path = crypto_path_data['path']
+        crypto_final_amount = best_path['final_amount']
+        base_effective_rate = (crypto_final_amount / send_amount) if send_amount else 0
+        our_rate = model_batching_savings(base_effective_rate, send_amount)
         our_amount = send_amount * our_rate
-        crypto_path = crypto_path_data['path']
+        route_options = crypto_path_data.get('routes', [])
+        on_ramp_details = crypto_path_data.get('on_ramp')
+        crypto_path = {
+            **best_path,
+            'best_path': best_path,
+            'routes': route_options,
+            'on_ramp': on_ramp_details,
+            'processing_time_ms': crypto_path_data['processing_time_ms']
+        }
     else:
         # Fallback to mid-market rate if crypto path fails
         our_rate = mid_market_rate
@@ -365,6 +414,8 @@ async def calculate_best_quote(send_currency: str, receive_currency: str, send_a
         'mid_market_rate': mid_market_rate,
         'mid_market_amount': mid_market_amount,
         'crypto_path': crypto_path,
+        'route_options': route_options,
+        'on_ramp_details': on_ramp_details,
         'timestamp': datetime.now().isoformat()
     }
     
@@ -379,7 +430,9 @@ async def calculate_best_quote(send_currency: str, receive_currency: str, send_a
         mid_market_amount=mid_market_amount,
         crypto_path=crypto_path,
         timestamp=datetime.now().isoformat(),
-        processing_time_ms=int(processing_time)
+        processing_time_ms=int(processing_time),
+        route_options=route_options,
+        on_ramp_details=on_ramp_details
     )
 
 # API Endpoints
@@ -518,7 +571,9 @@ async def execute_transfer(request: TransferExecuteRequest, user_token: dict = D
                 'received_currency': quote_data['receive_currency'],
                 'rate': quote_data['our_rate'],
                 'timestamp': firestore.SERVER_TIMESTAMP,
-                'crypto_path': quote_data['crypto_path']
+                    'crypto_path': quote_data['crypto_path'],
+                    'route_options': quote_data.get('route_options'),
+                    'on_ramp_details': quote_data.get('on_ramp_details')
             })
 
             print(f"✅ Transaction {transaction_id} recorded")

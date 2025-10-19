@@ -83,6 +83,116 @@ const CurrencySelect = styled.select`
   }
 `;
 
+const RouteSummary = styled.div`
+  background: ${props => props.theme.colors.surface};
+  border-radius: ${props => props.theme.borderRadius.md};
+  padding: ${props => props.theme.spacing.md};
+  margin-top: ${props => props.theme.spacing.md};
+`;
+
+const RouteSummaryLabel = styled.span`
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: ${props => props.theme.colors.textSecondary};
+  margin-bottom: ${props => props.theme.spacing.xs};
+`;
+
+const RouteSummaryValue = styled.span`
+  font-size: 0.95rem;
+  font-weight: ${props => props.theme.fonts.weights.semiBold};
+  color: ${props => props.theme.colors.text};
+`;
+
+const RouteAnalysis = styled.div`
+  margin-top: ${props => props.theme.spacing.lg};
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.sm};
+`;
+
+const RouteAnalysisTitle = styled.h4`
+  font-size: 0.95rem;
+  font-weight: ${props => props.theme.fonts.weights.semiBold};
+  color: ${props => props.theme.colors.text};
+  margin: 0;
+`;
+
+const RouteList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.sm};
+`;
+
+const RouteItem = styled.div`
+  border: 1px solid ${props => props.$isBest ? props.theme.colors.primary : props.theme.colors.borderLight};
+  background: ${props => props.$isBest ? props.theme.colors.surface : props.theme.colors.background};
+  border-radius: ${props => props.theme.borderRadius.md};
+  padding: ${props => props.theme.spacing.md};
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: ${props => props.theme.spacing.md};
+  align-items: center;
+
+  @media (max-width: ${props => props.theme.breakpoints.mobile}) {
+    grid-template-columns: 1fr;
+  }
+`;
+
+const RouteInfo = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.xs};
+`;
+
+const RouteTitle = styled.div`
+  display: flex;
+  align-items: center;
+  gap: ${props => props.theme.spacing.xs};
+  font-weight: ${props => props.theme.fonts.weights.semiBold};
+  color: ${props => props.theme.colors.text};
+`;
+
+const RouteSubtitle = styled.span`
+  font-size: 0.8rem;
+  color: ${props => props.theme.colors.textSecondary};
+`;
+
+const RouteMetric = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${props => props.theme.spacing.xs};
+`;
+
+const RouteMetricLabel = styled.span`
+  font-size: 0.75rem;
+  color: ${props => props.theme.colors.textSecondary};
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+`;
+
+const RouteMetricValue = styled.span`
+  font-size: 1rem;
+  font-weight: ${props => props.theme.fonts.weights.semiBold};
+  color: ${props => props.theme.colors.text};
+`;
+
+const RouteDelta = styled.span`
+  font-size: 0.8rem;
+  color: ${props => props.theme.colors.textSecondary};
+`;
+
+const RouteBadge = styled.span`
+  font-size: 0.7rem;
+  font-weight: ${props => props.theme.fonts.weights.medium};
+  text-transform: uppercase;
+  padding: 0 ${props => props.theme.spacing.xs};
+  background: ${props => props.theme.colors.accent};
+  color: ${props => props.theme.colors.background};
+  border-radius: ${props => props.theme.borderRadius.sm};
+`;
+
 const SwapButton = styled.button`
   background: ${props => props.theme.colors.surfaceLight};
   border: 1px solid ${props => props.theme.colors.border};
@@ -222,6 +332,65 @@ export default function QuickConverter() {
   const [quote, setQuote] = useState(null);
   const [error, setError] = useState(null);
 
+  const isNumber = (value) => typeof value === 'number' && Number.isFinite(value);
+
+  const formatCurrency = (amount, currency) => {
+    const symbols = {
+      USD: '$', EUR: '€', GBP: '£', MXN: '$', JPY: '¥', CAD: 'C$', AUD: 'A$'
+    };
+    if (!isNumber(amount)) {
+      return '--';
+    }
+    const formatted = Math.abs(amount).toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return `${symbols[currency] || currency} ${formatted}`;
+  };
+
+  const formatRate = (rate) => (isNumber(rate) ? rate.toFixed(4) : '--');
+
+  const formatSignedCurrency = (amount, currency) => {
+    if (!isNumber(amount)) {
+      return '--';
+    }
+    const sign = amount >= 0 ? '+' : '-';
+    return `${sign}${formatCurrency(amount, currency)}`;
+  };
+
+  const formatSignedPercent = (value) => {
+    if (!isNumber(value)) {
+      return '--';
+    }
+    const sign = value >= 0 ? '+' : '-';
+    return `${sign}${Math.abs(value).toFixed(2)}%`;
+  };
+
+  const getRouteDifferenceLabel = (diffAmount, diffPct, currency) => {
+    if (!isNumber(diffAmount) || Math.abs(diffAmount) < 1e-6) {
+      return 'Best route';
+    }
+    const amountLabel = formatSignedCurrency(-diffAmount, currency);
+    const pctLabel = formatSignedPercent(-(diffPct ?? 0));
+    return `${amountLabel} vs best (${pctLabel})`;
+  };
+
+  const routeOptions = quote?.route_options ?? quote?.crypto_path?.routes ?? [];
+  const bestRoute = quote?.crypto_path?.best_path
+    ?? (quote?.crypto_path?.final_amount ? quote.crypto_path : null);
+  const savingsAmount = quote && isNumber(quote.mid_market_amount)
+    ? quote.our_amount - quote.mid_market_amount
+    : null;
+  const savingsPct = savingsAmount !== null && quote && isNumber(quote.mid_market_amount) && quote.mid_market_amount
+    ? (savingsAmount / quote.mid_market_amount) * 100
+    : null;
+  const savingsLabel = quote && savingsAmount !== null
+    ? formatSignedCurrency(savingsAmount, quote.receive_currency)
+    : null;
+  const savingsPctLabel = savingsPct !== null ? formatSignedPercent(savingsPct) : null;
+  const processingTimeMs = quote?.processing_time_ms;
+  const processingLabel = isNumber(processingTimeMs) ? `${Math.round(processingTimeMs)} ms` : null;
+
   const handleGetQuote = async () => {
     if (!sendAmount || parseFloat(sendAmount) <= 0) {
       toast.error('Please enter a valid amount');
@@ -278,13 +447,6 @@ export default function QuickConverter() {
   const handleSwapCurrencies = () => {
     setSendCurrency(receiveCurrency);
     setReceiveCurrency(sendCurrency);
-  };
-
-  const formatCurrency = (amount, currency) => {
-    const symbols = {
-      USD: '$', EUR: '€', GBP: '£', MXN: '$', JPY: '¥', CAD: 'C$', AUD: 'A$'
-    };
-    return `${symbols[currency] || currency} ${amount.toFixed(2)}`;
   };
 
   return (
@@ -373,13 +535,87 @@ export default function QuickConverter() {
         <ResultsContainer>
           <RateDisplay>
             <RateLabel>Our Rate</RateLabel>
-            <RateValue>{quote.our_rate.toFixed(4)}</RateValue>
+            <RateValue>{formatRate(quote.our_rate)}</RateValue>
           </RateDisplay>
           <RateDisplay>
             <RateLabel>You'll Receive</RateLabel>
             <RateValue>{formatCurrency(quote.our_amount, quote.receive_currency)}</RateValue>
           </RateDisplay>
-          
+          {isNumber(quote.mid_market_rate) && (
+            <RateDisplay>
+              <RateLabel>Mid-Market Rate</RateLabel>
+              <RateValue>{formatRate(quote.mid_market_rate)}</RateValue>
+            </RateDisplay>
+          )}
+          {isNumber(quote.mid_market_amount) && (
+            <RateDisplay>
+              <RateLabel>Mid-Market Receive</RateLabel>
+              <RateValue>{formatCurrency(quote.mid_market_amount, quote.receive_currency)}</RateValue>
+            </RateDisplay>
+          )}
+          {savingsLabel && savingsPctLabel && (
+            <RateDisplay>
+              <RateLabel>Your Advantage</RateLabel>
+              <RateValue>{`${savingsLabel} (${savingsPctLabel})`}</RateValue>
+            </RateDisplay>
+          )}
+          {processingLabel && (
+            <RateDisplay>
+              <RateLabel>Route Search Time</RateLabel>
+              <RateValue>{processingLabel}</RateValue>
+            </RateDisplay>
+          )}
+
+          {bestRoute?.path && (
+            <RouteSummary>
+              <RouteSummaryLabel>Selected Route</RouteSummaryLabel>
+              <RouteSummaryValue>{bestRoute.path}</RouteSummaryValue>
+            </RouteSummary>
+          )}
+
+          {routeOptions.length > 0 && (
+            <RouteAnalysis>
+              <RouteAnalysisTitle>Route Comparison</RouteAnalysisTitle>
+              <RouteList>
+                {routeOptions.map((route, index) => {
+                  const diffAmount = route.difference_from_best_batched ?? route.difference_from_best;
+                  const routeKey = route.chain || `route-${index}`;
+                  const routeLabel = route.chain ? route.chain.toUpperCase() : `Path ${index + 1}`;
+                  const routeSubtitle = route.path || `${quote.send_currency || sendCurrency} → ${quote.receive_currency || receiveCurrency}`;
+                  return (
+                    <RouteItem key={routeKey} $isBest={route.is_best}>
+                      <RouteInfo>
+                        <RouteTitle>
+                          {routeLabel}
+                          {route.is_best && <RouteBadge>Selected</RouteBadge>}
+                        </RouteTitle>
+                        <RouteSubtitle>{routeSubtitle}</RouteSubtitle>
+                      </RouteInfo>
+                      <RouteMetric>
+                        <RouteMetricLabel>Projected Receive</RouteMetricLabel>
+                        <RouteMetricValue>
+                          {formatCurrency(
+                            route.projected_batched_amount ?? route.expected_final_amount,
+                            quote.receive_currency
+                          )}
+                        </RouteMetricValue>
+                      </RouteMetric>
+                      <RouteMetric>
+                        <RouteMetricLabel>Effective Rate</RouteMetricLabel>
+                        <RouteMetricValue>
+                          {formatRate(route.projected_batched_rate ?? route.effective_rate)}
+                        </RouteMetricValue>
+                        <RouteDelta>
+                          {getRouteDifferenceLabel(diffAmount, route.difference_pct, quote.receive_currency)}
+                        </RouteDelta>
+                      </RouteMetric>
+                    </RouteItem>
+                  );
+                })}
+              </RouteList>
+            </RouteAnalysis>
+          )}
+
           <ReceiverInput
             type="email"
             placeholder="Enter receiver email"
