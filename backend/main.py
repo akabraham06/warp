@@ -19,11 +19,39 @@ import os
 import os
 from collections.abc import Generator
 from dotenv import load_dotenv
+from pathlib import Path
 import firebase_admin
 from firebase_admin import credentials, firestore, auth
+import stripe
 
-# Load environment variables
-load_dotenv()
+
+def load_environment_variables() -> bool:
+    """Load environment variables from known .env locations."""
+    env_dir = Path(__file__).resolve().parent
+    candidate_paths = [env_dir / ".env", env_dir.parent / ".env"]
+    loaded_any = False
+    for env_path in candidate_paths:
+        if env_path.exists():
+            load_dotenv(env_path, override=True)
+            loaded_any = True
+    if not loaded_any:
+        load_dotenv()
+    return loaded_any
+
+
+env_loaded = load_environment_variables()
+if not env_loaded:
+    print("⚠️ No .env file found alongside backend; relying on existing environment variables")
+
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+stripe_enabled = False
+if STRIPE_SECRET_KEY:
+    try:
+        stripe.api_key = STRIPE_SECRET_KEY
+        stripe_enabled = True
+        print("✅ Stripe initialized")
+    except Exception as e:
+        print(f"Stripe initialization error: {e}")
 
 # Import our existing services
 import sys
@@ -105,6 +133,9 @@ class TransferExecuteResponse(BaseModel):
     status: str
     message: str
     timestamp: str
+    stripe_payment_id: Optional[str] = None
+    stripe_payment_status: Optional[str] = None
+    stripe_payment_client_secret: Optional[str] = None
 
 class UserResponse(BaseModel):
     email: str
@@ -277,6 +308,36 @@ def model_batching_savings(crypto_rate: float, amount: float) -> float:
         savings_factor = 1.002  # 0.2% savings for large amounts
     
     return crypto_rate * savings_factor
+
+
+def process_stripe_deposit(amount_usd: float, receiver_email: str, quote_id: str) -> Dict[str, Any]:
+    """Create a Stripe PaymentIntent to simulate depositing funds into Stripe."""
+    if not stripe_enabled:
+        raise Exception("Stripe integration not configured")
+
+    amount_cents = int(round(amount_usd * 100))
+    if amount_cents <= 0:
+        raise Exception("Stripe deposit amount must be greater than zero")
+
+    try:
+        payment_intent = stripe.PaymentIntent.create(
+            amount=amount_cents,
+            currency="usd",
+            payment_method_types=["card"],
+            payment_method="pm_card_visa",
+            confirm=True,
+            description=f"Warp transfer to {receiver_email}",
+            metadata={
+                "receiver_email": receiver_email,
+                "quote_id": quote_id,
+                "source": "warp_transfer"
+            }
+        )
+        print(f"✅ Stripe deposit processed: {payment_intent.get('id')}")
+        return payment_intent
+    except Exception as stripe_error:
+        print(f"❌ Stripe deposit error: {stripe_error}")
+        raise
 
 async def find_best_crypto_path(amount: float, from_currency: str, to_currency: str) -> Dict:
     """Find the best crypto path for the transaction"""
@@ -495,6 +556,23 @@ async def execute_transfer(request: TransferExecuteRequest, user_token: dict = D
         print(f"✅ Receiver document type: {type(receiver_doc_snapshot)}")
         print(f"✅ Receiver document ID: {receiver_doc_snapshot.id}")
         receiver_doc_id = receiver_doc_snapshot.id
+
+        stripe_payment = None
+        requires_stripe_deposit = (
+            request.receiver_email.lower() == "noahphilip@utexas.edu"
+            and quote_data['receive_currency'].lower() == 'usd'
+        )
+
+        if requires_stripe_deposit:
+            try:
+                stripe_payment = process_stripe_deposit(
+                    quote_data['our_amount'],
+                    request.receiver_email,
+                    request.quote_id
+                )
+            except Exception as stripe_error:
+                error_message = str(stripe_error)
+                raise HTTPException(status_code=502, detail=f"Stripe deposit failed: {error_message}")
         
         # Execute Firestore transaction
         transaction_id = str(uuid.uuid4())
@@ -573,7 +651,10 @@ async def execute_transfer(request: TransferExecuteRequest, user_token: dict = D
                 'timestamp': firestore.SERVER_TIMESTAMP,
                     'crypto_path': quote_data['crypto_path'],
                     'route_options': quote_data.get('route_options'),
-                    'on_ramp_details': quote_data.get('on_ramp_details')
+                    'on_ramp_details': quote_data.get('on_ramp_details'),
+                    'stripe_payment_id': stripe_payment.get('id') if stripe_payment else None,
+                    'stripe_payment_status': stripe_payment.get('status') if stripe_payment else None,
+                    'stripe_payment_client_secret': stripe_payment.get('client_secret') if stripe_payment else None
             })
 
             print(f"✅ Transaction {transaction_id} recorded")
@@ -583,6 +664,12 @@ async def execute_transfer(request: TransferExecuteRequest, user_token: dict = D
             run_transfer_transaction(transaction)
         except Exception as e:
             print(f"❌ Transaction failed, rolling back: {e}")
+            if stripe_payment and stripe_payment.get('id'):
+                try:
+                    stripe.Refund.create(payment_intent=stripe_payment['id'])
+                    print(f"♻️ Stripe payment {stripe_payment['id']} refunded due to transfer failure")
+                except Exception as refund_error:
+                    print(f"⚠️ Failed to refund Stripe payment {stripe_payment['id']}: {refund_error}")
             raise e
         
         # Remove quote from cache
@@ -592,7 +679,10 @@ async def execute_transfer(request: TransferExecuteRequest, user_token: dict = D
             transaction_id=transaction_id,
             status="COMPLETED",
             message="Transfer executed successfully",
-            timestamp=datetime.now().isoformat()
+            timestamp=datetime.now().isoformat(),
+            stripe_payment_id=stripe_payment.get('id') if stripe_payment else None,
+            stripe_payment_status=stripe_payment.get('status') if stripe_payment else None,
+            stripe_payment_client_secret=stripe_payment.get('client_secret') if stripe_payment else None
         )
         
     except Exception as e:
