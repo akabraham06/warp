@@ -3,43 +3,34 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from 'styled-components';
-import { theme } from './styles/theme';
-import { GlobalStyles } from './styles/GlobalStyles';
+import { twooTheme } from './styles/twooTheme';
+import { TwooGlobalStyles } from './styles/TwooGlobalStyles';
 
 // Components
-import Header from './components/Header';
+import TwooHeader from './components/TwooHeader';
 import ProtectedRoute from './components/ProtectedRoute';
 
 // Pages
-import LandingPage from './pages/LandingPage';
-import Dashboard from './pages/Dashboard';
-import TransactionHistory from './pages/TransactionHistory';
-import Login from './pages/Login';
+import TwooLandingPage from './pages/TwooLandingPage';
+import TwooDashboard from './pages/TwooDashboard';
+import TwooLogin from './pages/TwooLogin';
 
 function App() {
   return (
-    <ThemeProvider theme={theme}>
-      <GlobalStyles />
+    <ThemeProvider theme={twooTheme}>
+      <TwooGlobalStyles />
       <AuthProvider>
         <Router>
           <div className="App">
-            <Header />
+            <TwooHeader />
             <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<TwooLandingPage />} />
+              <Route path="/login" element={<TwooLogin />} />
               <Route 
                 path="/dashboard" 
                 element={
                   <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/history" 
-                element={
-                  <ProtectedRoute>
-                    <TransactionHistory />
+                    <TwooDashboard />
                   </ProtectedRoute>
                 } 
               />
@@ -49,9 +40,9 @@ function App() {
               toastOptions={{
                 duration: 4000,
                 style: {
-                  background: '#1a1a2e',
+                  background: '#000',
                   color: '#fff',
-                  border: '1px solid #4facfe',
+                  border: '1px solid #767676',
                 },
               }}
             />

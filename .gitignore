@@ -252,3 +252,136 @@ docs/build/
 # Local development
 .local/
 local/
+
+# React build artifacts
+/frontend/build
+/frontend/dist
+/frontend/.next
+/frontend/out
+
+# Backend specific
+/backend/__pycache__
+/backend/*.pyc
+/backend/*.pyo
+/backend/*.pyd
+/backend/.pytest_cache
+/backend/.coverage
+/backend/htmlcov/
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint
+.eslintcache
+
+# Prettier
+.prettierignore
+
+# Vercel
+.vercel
+
+# Netlify
+.netlify
+
+# Railway
+.railway
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Kubernetes
+*.kubeconfig
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Ansible
+*.retry
+
+# Vagrant
+.vagrant/
+
+# Local configuration overrides
+config.local.js
+config.local.json
+settings.local.js
+settings.local.json
+
+# IDE specific
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/shelf
+
+# MacOS
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Windows
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Media files (if not needed in repo)
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mp3
+*.wav
+*.flac
+*.aac
+
+# Large data files
+*.csv
+*.json
+*.xml
+*.sql
+*.dump
+
+# Certificate files
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Local environment overrides
+.env.override
+.env.local.override
